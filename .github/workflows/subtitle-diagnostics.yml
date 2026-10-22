@@ -1,0 +1,14 @@
+name: Subtitle diagnostics S02E04
+on:
+  push:
+    branches: [diagnostics-the-boys-s02e04]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Public subtitle source metadata (no dialogue logged)
+        run: python3 scripts/diagnose_subs.py
