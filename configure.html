@@ -296,6 +296,10 @@
         <span class="provider-tag">Ktuvit.me</span>
         <span class="provider-tag">OpenSubtitles v3</span>
       </div>
+      <div class="step-desc" style="margin-top: 10px">
+        מצב עיבוד כתוביות פעיל בשרת:
+        <span class="status waiting" id="rtlModeStatus">בודק...</span>
+      </div>
     </div>
 
     <!-- Step 3: Install -->
@@ -405,6 +409,16 @@
         ? 'הסתר הגדרות מתקדמות'
         : 'הגדרות מתקדמות (MediaFusion)';
     });
+
+    // Display the actual server environment, not a guessed client-side flag.
+    fetch('/status', { cache: 'no-store' })
+      .then(response => response.ok ? response.json() : Promise.reject(new Error('status unavailable')))
+      .then(status => {
+        const indicator = document.getElementById('rtlModeStatus');
+        indicator.textContent = status.rtlMode.toUpperCase();
+        indicator.className = 'status ' + (status.rtlMode === 'off' ? 'waiting' : 'ok');
+      })
+      .catch(() => { document.getElementById('rtlModeStatus').textContent = 'לא זמין'; });
 
     updateUrl();
   </script>

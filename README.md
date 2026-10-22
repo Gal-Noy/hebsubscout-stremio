@@ -22,7 +22,7 @@ Other Hebrew subtitle addons (ktuvit-stremio, wizdom-stremio) only provide subti
 - `[עב 92%]` = Hebrew subtitle matches this source 92%
 - `[עב ✗]` = No matching Hebrew subtitle found
 
-> **RTL fork (v2.0.2):** subtitle search now aggregates the official Stremio OpenSubtitles v3, Ktuvit and Wizdom addons. No personal OpenSubtitles API key or Ktuvit credentials are needed. The RTL experiment is opt-in with `RTL_MODE`; default is one unchanged subtitle per result. See [README_RTL.md](README_RTL.md).
+> **RTL fork (v2.0.3):** subtitle search now aggregates the official Stremio OpenSubtitles v3, Ktuvit and Wizdom addons. No personal OpenSubtitles API key or Ktuvit credentials are needed. The RTL experiment is opt-in with `RTL_MODE`; default is one unchanged subtitle per result. `RTL_MODE=apple` enables experimental punctuation normalization for Stremio tvOS. The installer shows the active server mode. See [README_RTL.md](README_RTL.md).
 
 ## Quick Install
 
