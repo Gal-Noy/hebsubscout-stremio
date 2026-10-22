@@ -1,0 +1,11 @@
+'use strict';
+const assert = require('node:assert/strict');
+const { fixSubtitleRtl } = require('../lib/rtl');
+const R = '\u202B', P = '\u202C';
+const input = '1\r\n00:00:01,000 --> 00:00:04,000\r\nמה נשמע?\r\nHello, שלום!\r\n\r\n2\r\n00:00:05,000 --> 00:00:06,000\r\nEnglish only.\r\n';
+const expected = `1\r\n00:00:01,000 --> 00:00:04,000\r\n${R}מה נשמע?${P}\r\n${R}Hello, שלום!${P}\r\n\r\n2\r\n00:00:05,000 --> 00:00:06,000\r\nEnglish only.\r\n`;
+assert.equal(fixSubtitleRtl(input), expected, 'keep timing and CRLF; fix Hebrew lines only');
+assert.equal(fixSubtitleRtl(expected), expected, 'idempotent');
+assert.equal(fixSubtitleRtl('1\n00:00:01,000 --> 00:00:02,000\n?שלום\n'), `1\n00:00:01,000 --> 00:00:02,000\n${R}?שלום${P}\n`, 'leave legacy punctuation order unchanged');
+assert.equal(fixSubtitleRtl('WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nשלום\n'), 'WEBVTT\n\n00:00:01.000 --> 00:00:03.000\nשלום\n', 'do not rewrite VTT');
+console.log('RTL tests passed (4 assertions)');
