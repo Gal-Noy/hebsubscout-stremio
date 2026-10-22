@@ -25,7 +25,9 @@ An opt-in compatibility **experiment**, not an automatic, universal fix:
 | --- | --- | --- |
 | `off` (default) | One track from each provider | No directional edits |
 | `compare` | Original and RTL-test versions | Compare on the same Apple TV player |
-| `on` | One RTL-test track per provider result | RLE/PDF only on unmarked Hebrew SRT lines |
+| `on` | One RTL-test track per provider result | Legacy RLE/PDF experiment (often worsens desktop punctuation) |
+| `apple` | One Apple TV experimental track per provider result | Convert logical final punctuation to legacy leading punctuation, unwrapping RLE/PDF |
+| `compare-apple` | Original and Apple TV versions | Side-by-side device testing |
 
 The function is **idempotent**: running twice has the same result as running once. It respects existing Unicode BiDi marks, text in other languages, subtitle timestamps and WebVTT. It does not attempt to guess where punctuation belongs in historically pre-reversed SRTs, and RTL may still look worse on some players.
 
@@ -46,3 +48,5 @@ For **The Boys S02E04: Nothing Like It in the World** use series ID `tt1190634:2
 No new runtime dependencies. The subtitle proxy uses 128-bit random short-lived download tokens and accepts only result URLs provided by the trusted upstream subtitle addons. It extracts .srt from ZIP and decodes UTF-8, Windows-1255 or BOM-identified UTF-16.
 
 The three upstream subtitle services are outside this fork's control. If one fails, it may still show up independently in Stremio if you have its original addon installed; remove redundant addons only when you're satisfied with the aggregator.
+
+The installer shows the actual active mode from the public `/status` endpoint. `apple` is an **experimental tvOS-specific convention** and is not guaranteed to improve every player. It is likely to produce the wrong punctuation on desktops that expect logical RTL punctuation.
