@@ -18,7 +18,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { fixSubtitleRtl } = require('./lib/rtl');
+const { fixSubtitleRtl, normalizeForAppleTv } = require('./lib/rtl');
 
 // Unpredictable, short-lived URLs: the public proxy cannot fetch arbitrary URLs.
 const downloads = new Map();
@@ -44,7 +44,7 @@ function getDownload(token) {
 
 const manifest = {
   id: 'com.hebsubscout.rtl',
-  version: '2.0.2',
+  version: '2.0.3',
   name: 'HebSubScout RTL',
   description: 'Hebrew subtitle intelligence — match % on every source, auto-selects best subtitle. Built-in Real-Debrid. Free & open source.',
   logo: 'https://shahar015.github.io/hebsubscout/repo/plugin.video.hebscout/icon.png',
@@ -280,14 +280,15 @@ builder.defineSubtitlesHandler(async ({ type, id, extra }) => {
     const token = registerDownload({ url: sub.downloadUrl });
     const url = `${baseUrl}/proxy/sub/${token}`;
     const id = `hebsubscout-${sub.provider}-${sub.id}`;
-    const entry = rtl => ({
-      id: `${rtl ? 'rtl' : 'original'}-${id}`,
-      url: rtl ? `${url}?rtl=1` : url,
+    const entry = mode => ({
+      id: `${mode}-${id}`,
+      url: mode === 'apple' ? `${url}?apple=1` : mode === 'on' ? `${url}?rtl=1` : url,
       lang: 'heb',
-      label: `[${sub.provider}] ${sub.name}${rtl ? ' (RTL test)' : ''}`,
+      label: `[${sub.provider}] ${sub.name}${mode === 'apple' ? ' (Apple TV test)' : mode === 'on' ? ' (RTL test)' : ''}`,
     });
-    return rtlMode === 'compare' ? [entry(false), entry(true)]
-      : [entry(rtlMode === 'on')];
+    return rtlMode === 'compare' ? [entry('off'), entry('on')]
+      : rtlMode === 'compare-apple' ? [entry('off'), entry('apple')]
+      : [entry(rtlMode === 'apple' || rtlMode === 'on' ? rtlMode : 'off')];
   });
 
   console.log(`[HebSubScout] Returning ${result.length} Hebrew subtitles for ${imdbId}`);
@@ -305,7 +306,7 @@ const addonRouter = getRouter(builder.getInterface());
 // Known Stremio addon URL path prefixes
 const ADDON_PATHS = ['/manifest.json', '/stream/', '/subtitles/', '/meta/', '/catalog/'];
 
-function sendSubtitle(res, sourceBuffer, applyRtl) {
+function sendSubtitle(res, sourceBuffer, mode) {
   let buf = sourceBuffer;
   if (buf[0] === 0x50 && buf[1] === 0x4B) {
     const zip = new (require('adm-zip'))(buf);
@@ -321,7 +322,8 @@ function sendSubtitle(res, sourceBuffer, applyRtl) {
     try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
     catch { text = new TextDecoder('windows-1255').decode(buf); }
   }
-  const output = Buffer.from(applyRtl ? fixSubtitleRtl(text) : text, 'utf8');
+  const processed = mode === 'apple' ? normalizeForAppleTv(text) : mode === 'on' ? fixSubtitleRtl(text) : text;
+  const output = Buffer.from(processed, 'utf8');
   res.writeHead(200, { 'Content-Type': /^\uFEFF?WEBVTT/.test(text) ? 'text/vtt; charset=utf-8' : 'text/srt; charset=utf-8' });
   res.end(output);
 }
@@ -371,8 +373,9 @@ const server = http.createServer((req, res) => {
       headers: { 'User-Agent': 'HebSubScout/2.0' },
     }).then(async response => {
       if (!response.ok) { res.writeHead(502); res.end('Download failed'); return; }
-      const rtl = new URL(req.url, 'http://localhost').searchParams.get('rtl') === '1';
-      sendSubtitle(res, await response.buffer(), rtl);
+      const params = new URL(req.url, 'http://localhost').searchParams;
+      const mode = params.get('apple') === '1' ? 'apple' : params.get('rtl') === '1' ? 'on' : 'off';
+      sendSubtitle(res, await response.buffer(), mode);
     }).catch(err => {
       console.error('[HebSubScout] Subtitle proxy error:', err.message);
       if (!res.headersSent) res.writeHead(502);
