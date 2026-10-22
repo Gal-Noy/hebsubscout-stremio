@@ -1,10 +1,35 @@
-# HebSubScout RTL — Apple TV proof of concept
+# HebSubScout RTL — Stremio subtitle aggregator
 
-Based on [HebSubScout](https://github.com/shahar015/hebsubscout-stremio). Keeps existing matching, source providers, environment variables, Render blueprint, RD integration and installer page.
+Same fork, same stream results, release matching, Real-Debrid, Render blueprint and dependencies. Subtitle lookup now uses **three existing Stremio addons** instead of scraping Ktuvit or asking for an OpenSubtitles API key.
 
-The addon has a distinct ID (`com.hebsubscout.rtl`) and returns **RTL** and **Original** tracks for the same Wizdom, Ktuvit and OpenSubtitles result. The RTL track adds Unicode RLE/PDF controls only to Hebrew SRT cue lines; punctuation is not reordered. **Not yet verified on tvOS hardware.**
+| Provider | Source |
+| --- | --- |
+| OpenSubtitles v3 | `https://opensubtitles-v3.strem.io` (official) |
+| Ktuvit | `https://4b139a4b7f94-ktuvit-stremio.baby-beamup.club` |
+| Wizdom | `https://4b139a4b7f94-wizdom-stremio-v2.baby-beamup.club`; original Wizdom API used if the addon returns nothing |
 
-### Local
+The addon calls `/subtitles/{movie|series}/{imdbId[:season:episode]}.json`, filters results to Hebrew and proxies the downloaded subtitle file through our existing UTF-8 conversion. A provider outage or missing subtitle may still produce zero results.
+
+## Install
+
+Deploy this fork's `main` on Render using the **unchanged** `render.yaml`. Open `https://YOUR-HOST/configure` to generate an install URL, then install in Stremio with the same account used on Apple TV. Your existing Render environment variables remain accepted:
+
+- Still used: `PORT`, `BASE_URL`, `RENDER_EXTERNAL_URL`, `RD_TOKEN`, `MEDIAFUSION_URL`.
+- No longer needed for subtitle lookup: `KTUVIT_EMAIL`, `KTUVIT_PASSWORD`, `OPENSUBS_API_KEY`. You can remove these secrets from Render and reinstall using the simplified configure page.
+
+## RTL modes
+
+An opt-in compatibility **experiment**, not an automatic, universal fix:
+
+| `RTL_MODE` env | Subtitle picker | Processing |
+| --- | --- | --- |
+| `off` (default) | One track from each provider | No directional edits |
+| `compare` | Original and RTL-test versions | Compare on the same Apple TV player |
+| `on` | One RTL-test track per provider result | RLE/PDF only on unmarked Hebrew SRT lines |
+
+The function is **idempotent**: running twice has the same result as running once. It respects existing Unicode BiDi marks, text in other languages, subtitle timestamps and WebVTT. It does not attempt to guess where punctuation belongs in historically pre-reversed SRTs, and RTL may still look worse on some players.
+
+## Test
 
 ```sh
 npm ci
@@ -12,12 +37,12 @@ node tests/rtl.test.js
 npm start
 ```
 
-Open `http://localhost:7070/manifest.json` for local testing. Apple TV needs a publicly reachable HTTPS address.
+To diagnose a source's availability, inspect Render logs: each search logs the number of subtitles returned per provider.
 
-### Deploy / install
+For **The Boys S02E04: Nothing Like It in the World** use series ID `tt1190634:2:4`. This task inspected the subtitle retrieval and renderer preprocessing code but could **not** fetch the exact Wizdom SRT file from the research environment; its visual punctuation order has not been verified. If you provide that SRT file, we can inspect the actual leading and trailing symbols and the exact Unicode controls without guessing.
 
-Deploy **this fork** with the existing `render.yaml`. Set your credentials in Render, not GitHub. Existing `PORT`, `RD_TOKEN`, `KTUVIT_EMAIL`, `KTUVIT_PASSWORD`, `OPENSUBS_API_KEY`, `MEDIAFUSION_URL`, `BASE_URL` and `RENDER_EXTERNAL_URL` are supported as before; Ktuvit requires its hashed password. Then open `https://YOUR-RENDER-HOST/configure` or install `https://YOUR-RENDER-HOST/manifest.json` with the same Stremio account as Apple TV.
+## Implementation notes
 
-Choose one RTL track and its Original counterpart on the *same* video. Track labels depend on the Stremio client. Ktuvit and other proxy URLs expire after two hours (or restart); refresh subtitles to issue new links.
+No new runtime dependencies. The subtitle proxy uses 128-bit random short-lived download tokens and accepts only result URLs provided by the trusted upstream subtitle addons. It extracts .srt from ZIP and decodes UTF-8, Windows-1255 or BOM-identified UTF-16.
 
-The proxy issues unguessable, short-lived download tokens instead of accepting arbitrary URLs. For wider public deployment, review upstream's user configuration URLs (these can contain secrets), rate limits and shared Ktuvit session behavior. Original provider/API constraints remain.
+The three upstream subtitle services are outside this fork's control. If one fails, it may still show up independently in Stremio if you have its original addon installed; remove redundant addons only when you're satisfied with the aggregator.
