@@ -53,3 +53,41 @@ for name,base in SOURCES.items():
    if len(data)>3000000:print("FILE_TOO_LARGE")
    else:print("FILE",status,ct,json.dumps(analyze(data),ensure_ascii=False),flush=True)
   except Exception as e:print("FILE_ERROR",str(e)[:180],flush=True)
+
+# Compare two Wizdom releases with the same lines but opposite punctuation conventions.
+def strip_marks(text):
+ return "".join(c for c in text if c not in MARKS)
+def decoded(data):
+ if data.startswith(b"PK"):
+  with zipfile.ZipFile(io.BytesIO(data)) as z:
+   files=[x for x in z.namelist() if x.lower().endswith((".srt",".vtt"))]
+   data=z.read(files[0])
+ try:return data.decode("utf-8-sig")
+ except UnicodeError:return data.decode("cp1255",errors="replace")
+def body_lines(text):
+ return [x.strip() for x in text.splitlines() if any("\u0590"<=c<="\u05ff" for c in x)]
+def move_punctuation(line):
+ s=strip_marks(line).strip()
+ i=0
+ while i<len(s) and s[i] in PUNCT:i+=1
+ return s[i:]+s[:i] if i else s
+def count(text):
+ lines=body_lines(text)
+ clean=[strip_marks(x).strip() for x in lines]
+ return {"lines":len(lines),"prefix":sum(bool(x and x[0] in PUNCT) for x in clean),"suffix":sum(bool(x and x[-1] in PUNCT) for x in clean),"RLE":text.count("\u202b"),"PDF":text.count("\u202c"),"RLM":text.count("\u200f")}
+try:
+ data,_,_,_=get(SOURCES["Wizdom"]+PATH,1000000)
+ heb=[s for s in json.loads(data)["subtitles"] if s.get("lang")=="heb"]
+ versions=[]
+ for sub in heb[:3]:
+  data,_,_,_=get(sub["url"])
+  versions.append(decoded(data))
+  print("WIZDOM_VARIANT",str(sub["id"])[:65],json.dumps(count(versions[-1])),flush=True)
+ if len(versions)>=3:
+  left=body_lines(versions[0]);right=body_lines(versions[2])
+  n=min(len(left),len(right))
+  raw=sum(strip_marks(left[i])==strip_marks(right[i]) for i in range(n))
+  moved=sum(move_punctuation(left[i])==strip_marks(right[i]).strip() for i in range(n))
+  print("PAIRWISE_WIZDOM",json.dumps({"compared":n,"identicalWithoutMarks":raw,"identicalAfterMovingLeadingPunctuation":moved,"firstSixUnmatchedPatterns":[[mask(left[i]),mask(right[i])] for i in range(n) if move_punctuation(left[i])!=strip_marks(right[i]).strip()][:6]}),flush=True)
+except Exception as e:
+ print("COMPARE_ERROR",str(e)[:180],flush=True)
