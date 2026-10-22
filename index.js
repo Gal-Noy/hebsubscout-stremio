@@ -317,7 +317,7 @@ function sendSubtitle(res, sourceBuffer, applyRtl) {
   let buf = sourceBuffer;
   if (buf[0] === 0x50 && buf[1] === 0x4B) {
     const zip = new (require('adm-zip'))(buf);
-    const entry = zip.getEntries().find(e => /\\.srt$/i.test(e.entryName) && !e.isDirectory);
+    const entry = zip.getEntries().find(e => /\.srt$/i.test(e.entryName) && !e.isDirectory);
     if (!entry || entry.header.size > 10 * 1024 * 1024) throw new Error('Invalid or oversized subtitle ZIP');
     buf = entry.getData();
   }
