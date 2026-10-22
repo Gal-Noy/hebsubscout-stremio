@@ -10,5 +10,7 @@ jobs:
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
+      - name: Unicode and Apple TV normalization unit tests
+        run: node tests/rtl.test.js
       - name: Public subtitle source metadata (no dialogue logged)
         run: python3 scripts/diagnose_subs.py
