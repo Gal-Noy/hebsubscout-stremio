@@ -91,3 +91,44 @@ try:
   print("PAIRWISE_WIZDOM",json.dumps({"compared":n,"identicalWithoutMarks":raw,"identicalAfterMovingLeadingPunctuation":moved,"firstSixUnmatchedPatterns":[[mask(left[i]),mask(right[i])] for i in range(n) if move_punctuation(left[i])!=strip_marks(right[i]).strip()][:6]}),flush=True)
 except Exception as e:
  print("COMPARE_ERROR",str(e)[:180],flush=True)
+
+# Execute the proposed Node.js Apple TV normalizer on live downloaded files.
+import subprocess
+NODE_TEST=r"""
+const fs=require('fs');
+const {normalizeForAppleTv,subtitlePunctuationStats}=require('./lib/rtl');
+const original=fs.readFileSync(0,'utf8');
+const output=normalizeForAppleTv(original);
+if(normalizeForAppleTv(output)!==output)process.exit(7);
+process.stdout.write(JSON.stringify({before:subtitlePunctuationStats(original),after:subtitlePunctuationStats(output),unchanged:output===original,output:Buffer.from(output,'utf8').toString('base64')}));
+"""
+def normalize_live(text):
+ p=subprocess.run(['node','-e',NODE_TEST],input=text,text=True,capture_output=True,timeout=10)
+ if p.returncode!=0:raise RuntimeError("JS integration failed: "+p.stderr[:160])
+ o=json.loads(p.stdout)
+ import base64
+ value=base64.b64decode(o.pop('output')).decode('utf8')
+ return value,o
+try:
+ result,_,_,_=get(SOURCES["Wizdom"]+PATH,1000000)
+ subs=[s for s in json.loads(result)["subtitles"] if s.get("lang")=="heb"]
+ selected=[("wizdom_legacy",subs[0]["url"]),("wizdom_logical",subs[2]["url"])]
+ result,_,_,_=get(SOURCES["Ktuvit"]+PATH,1000000)
+ subs=[s for s in json.loads(result)["subtitles"] if s.get("lang")=="heb"]
+ selected += [("ktuvit_legacy",subs[1]["url"])]
+ result,_,_,_=get(SOURCES["OpenSubtitles"]+PATH,1000000)
+ subs=[s for s in json.loads(result)["subtitles"] if s.get("lang")=="heb"]
+ selected += [("opensubs_logical",subs[0]["url"])]
+ normalized={}
+ for name,url in selected:
+  raw,_,_,_=get(url)
+  converted,info=normalize_live(decoded(raw))
+  normalized[name]=converted
+  print("APPLE_NORMALIZE",name,json.dumps(info),flush=True)
+ a=body_lines(normalized["wizdom_legacy"])
+ b=body_lines(normalized["wizdom_logical"])
+ total=min(len(a),len(b))
+ print("APPLE_PAIRWISE",json.dumps({"compared":total,"normalizedIdenticalLines":sum(a[i]==b[i] for i in range(total)),"left":count(normalized["wizdom_legacy"]),"right":count(normalized["wizdom_logical"])}),flush=True)
+except Exception as e:
+ print("APPLE_NORMALIZE_ERROR",str(e)[:240],flush=True)
+ raise
