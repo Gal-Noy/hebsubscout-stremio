@@ -22,6 +22,8 @@ Other Hebrew subtitle addons (ktuvit-stremio, wizdom-stremio) only provide subti
 - `[עב 92%]` = Hebrew subtitle matches this source 92%
 - `[עב ✗]` = No matching Hebrew subtitle found
 
+> **RTL fork (v2.0.2):** subtitle search now aggregates the official Stremio OpenSubtitles v3, Ktuvit and Wizdom addons. No personal OpenSubtitles API key or Ktuvit credentials are needed. The RTL experiment is opt-in with `RTL_MODE`; default is one unchanged subtitle per result. See [README_RTL.md](README_RTL.md).
+
 ## Quick Install
 
 ### Self-Hosted (Local)
@@ -46,16 +48,16 @@ KTUVIT_EMAIL=your@email.com KTUVIT_PASSWORD=sha256hash npm start
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `PORT` | No | Server port (default: 7070) |
-| `KTUVIT_EMAIL` | No | Ktuvit.me login email |
-| `KTUVIT_PASSWORD` | No | Ktuvit.me SHA-256 hashed password |
-| `OPENSUBS_API_KEY` | No | OpenSubtitles API key |
+| `KTUVIT_EMAIL` | No | Legacy setting; no longer used for subtitle search |
+| `KTUVIT_PASSWORD` | No | Legacy setting; no longer used for subtitle search |
+| `OPENSUBS_API_KEY` | No | Legacy setting; no longer used for subtitle search |
 | `MEDIAFUSION_URL` | No | MediaFusion encrypted config URL |
 | `BASE_URL` | No | Public URL for hosted deployments |
 
 ## How It Works
 
 1. When you browse a movie/show in Stremio, HebSubScout intercepts the stream request
-2. It fetches sources from **Torrentio** (and optionally **MediaFusion**) in parallel with Hebrew subtitles from **Wizdom.xyz**, **Ktuvit.me**, and **OpenSubtitles**
+2. It fetches torrent sources through the existing indexers in parallel with Hebrew subtitles from the **Wizdom**, **Ktuvit**, and **OpenSubtitles v3** Stremio addons
 3. Each source gets scored against available Hebrew subtitles using a fuzzy matching algorithm
 4. Sources are returned with match % in the title — you see which one has the best Hebrew sub match
 5. When you play, the best matching subtitle is auto-selected
@@ -77,9 +79,9 @@ Scores 0-100 based on release name similarity:
 
 | Provider | Auth Required | Notes |
 |----------|--------------|-------|
-| **Wizdom.xyz** | None | Primary source, largest Hebrew subtitle database |
-| **Ktuvit.me** | Email + Password | Downloads proxied through addon server |
-| **OpenSubtitles** | API Key | Top 5 results (rate limited) |
+| **Wizdom.xyz** | None | Public Wizdom Stremio addon, with upstream API fallback |
+| **Ktuvit.me** | None | Public Ktuvit Stremio addon; downloads proxied through our server |
+| **OpenSubtitles v3** | None | Official Stremio subtitle addon |
 
 ## Source Providers
 

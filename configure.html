@@ -267,7 +267,7 @@
     <div class="header">
       <h1>HebSubScout</h1>
       <div class="subtitle">כתוביות עבריות חכמות — אחוז התאמה על כל מקור, בחירה אוטומטית</div>
-      <div class="version">v1.0.0 — חינם וקוד פתוח</div>
+      <div class="version">v2.0.2 — חינם וקוד פתוח</div>
     </div>
 
     <!-- Step 1: RD Token -->
@@ -290,11 +290,11 @@
         <div class="step-num">2</div>
         <div class="step-title">ספקי כתוביות</div>
       </div>
-      <div class="step-desc">נכללים אוטומטית, לא צריך להגדיר כלום:</div>
+      <div class="step-desc">OpenSubtitles v3, Ktuvit ו-Wizdom דרך התוספים הציבוריים של Stremio. ללא צורך במפתחות API או בסיסמאות:</div>
       <div class="providers">
-        <span class="provider-tag active">Wizdom.xyz</span>
+        <span class="provider-tag">Wizdom.xyz</span>
         <span class="provider-tag">Ktuvit.me</span>
-        <span class="provider-tag">OpenSubtitles</span>
+        <span class="provider-tag">OpenSubtitles v3</span>
       </div>
     </div>
 
@@ -310,31 +310,8 @@
     </div>
 
     <!-- Advanced (collapsed) -->
-    <button class="advanced-toggle" id="advancedToggle">הגדרות מתקדמות (Ktuvit, OpenSubtitles, MediaFusion)</button>
+    <button class="advanced-toggle" id="advancedToggle">הגדרות מתקדמות (MediaFusion)</button>
     <div class="advanced-section" id="advancedSection">
-      <div class="step">
-        <div class="step-header">
-          <div class="step-title">Ktuvit.me</div>
-        </div>
-        <div class="field">
-          <label>אימייל</label>
-          <input type="email" id="ktuvitEmail" placeholder="your@email.com">
-        </div>
-        <div class="field">
-          <label>סיסמא</label>
-          <input type="password" id="ktuvitPlain" placeholder="הסיסמא שלך (מומרת אוטומטית ל-hash)">
-          <div class="hint">הסיסמא מומרת ל-SHA-256 בדפדפן שלך — לא נשלחת לשום מקום</div>
-        </div>
-      </div>
-      <div class="step">
-        <div class="step-header">
-          <div class="step-title">OpenSubtitles</div>
-        </div>
-        <div class="field">
-          <label>API Key</label>
-          <input type="text" id="opensubsKey" placeholder="API key מ-opensubtitles.com">
-        </div>
-      </div>
       <div class="step">
         <div class="step-header">
           <div class="step-title">MediaFusion</div>
@@ -354,25 +331,12 @@
   <script>
     const baseUrl = window.location.origin;
 
-    // SHA-256 hash in browser
-    async function sha256(text) {
-      const encoded = new TextEncoder().encode(text);
-      const hash = await crypto.subtle.digest('SHA-256', encoded);
-      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
-    }
-
     async function buildConfig() {
       const config = {};
       const rdToken = document.getElementById('rdToken').value.trim();
-      const email = document.getElementById('ktuvitEmail').value.trim();
-      const plainPass = document.getElementById('ktuvitPlain').value.trim();
-      const osKey = document.getElementById('opensubsKey').value.trim();
       const mfUrl = document.getElementById('mediafusionUrl').value.trim();
 
       if (rdToken) config.rdToken = rdToken;
-      if (email) config.ktuvitEmail = email;
-      if (plainPass) config.ktuvitPassword = await sha256(plainPass);
-      if (osKey) config.opensubsApiKey = osKey;
       if (mfUrl) config.mediafusionUrl = mfUrl;
       return config;
     }
@@ -439,7 +403,7 @@
       section.classList.toggle('open');
       btn.textContent = section.classList.contains('open')
         ? 'הסתר הגדרות מתקדמות'
-        : 'הגדרות מתקדמות (Ktuvit, OpenSubtitles, MediaFusion)';
+        : 'הגדרות מתקדמות (MediaFusion)';
     });
 
     updateUrl();

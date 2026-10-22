@@ -9,7 +9,7 @@
 
 const { addonBuilder, getRouter } = require('stremio-addon-sdk');
 const { enrichStreams, matchSource } = require('./lib/matcher');
-const { searchAll, downloadKtuvit } = require('./lib/providers');
+const { searchAll } = require('./lib/providers');
 const { searchIndexers } = require('./lib/indexers');
 const { checkInstantAvailability, resolveTorrent } = require('./lib/realdebrid');
 const { detectQuality, detectInfo } = require('./lib/scrapers');
@@ -44,7 +44,7 @@ function getDownload(token) {
 
 const manifest = {
   id: 'com.hebsubscout.rtl',
-  version: '2.0.1',
+  version: '2.0.2',
   name: 'HebSubScout RTL',
   description: 'Hebrew subtitle intelligence — match % on every source, auto-selects best subtitle. Built-in Real-Debrid. Free & open source.',
   logo: 'https://shahar015.github.io/hebsubscout/repo/plugin.video.hebscout/icon.png',
@@ -273,29 +273,21 @@ builder.defineSubtitlesHandler(async ({ type, id, extra }) => {
   // Build the base URL for proxied downloads
   const baseUrl = process.env.RENDER_EXTERNAL_URL || process.env.BASE_URL || `http://localhost:${port}`;
 
-  // Return original + RTL versions for A/B testing on Apple TV.
+  // One subtitle track by default; an RTL A/B test is opt-in.
+  const rtlMode = (process.env.RTL_MODE || 'off').toLowerCase();
   const result = sorted.flatMap(sub => {
-    const rawUrl = sub.downloadUrl || '';
-    if (!rawUrl) return [];
-    let token, proxyType;
-    if (rawUrl.startsWith('PROXY:ktuvit:')) {
-      if (!config.ktuvitEmail || !config.ktuvitPassword) return [];
-      token = registerDownload({
-        subId: sub._ktuvitSubId || rawUrl.slice('PROXY:ktuvit:'.length), config,
-      });
-      proxyType = 'ktuvit';
-    } else {
-      try { if (new URL(rawUrl).protocol !== 'https:') return []; }
-      catch { return []; }
-      token = registerDownload({ url: rawUrl });
-      proxyType = 'sub';
-    }
-    const url = `${baseUrl}/proxy/${proxyType}/${token}`;
+    if (!sub.downloadUrl || !sub.downloadUrl.startsWith('https://')) return [];
+    const token = registerDownload({ url: sub.downloadUrl });
+    const url = `${baseUrl}/proxy/sub/${token}`;
     const id = `hebsubscout-${sub.provider}-${sub.id}`;
-    return [
-      { id: `rtl-${id}`, url: `${url}?rtl=1`, lang: 'heb', label: `RTL • ${sub.provider} • ${sub.name}` },
-      { id: `original-${id}`, url, lang: 'heb', label: `Original • ${sub.provider} • ${sub.name}` },
-    ];
+    const entry = rtl => ({
+      id: `${rtl ? 'rtl' : 'original'}-${id}`,
+      url: rtl ? `${url}?rtl=1` : url,
+      lang: 'heb',
+      label: `[${sub.provider}] ${sub.name}${rtl ? ' (RTL test)' : ''}`,
+    });
+    return rtlMode === 'compare' ? [entry(false), entry(true)]
+      : [entry(rtlMode === 'on')];
   });
 
   console.log(`[HebSubScout] Returning ${result.length} Hebrew subtitles for ${imdbId}`);
@@ -323,10 +315,14 @@ function sendSubtitle(res, sourceBuffer, applyRtl) {
   }
   if (buf.length > 10 * 1024 * 1024) throw new Error('Subtitle too large');
   let text;
-  try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
-  catch { text = new TextDecoder('windows-1255').decode(buf); }
+  if (buf[0] === 0xFF && buf[1] === 0xFE) text = new TextDecoder('utf-16le').decode(buf.subarray(2));
+  else if (buf[0] === 0xFE && buf[1] === 0xFF) text = new TextDecoder('utf-16be').decode(buf.subarray(2));
+  else {
+    try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
+    catch { text = new TextDecoder('windows-1255').decode(buf); }
+  }
   const output = Buffer.from(applyRtl ? fixSubtitleRtl(text) : text, 'utf8');
-  res.writeHead(200, { 'Content-Type': 'text/srt; charset=utf-8' });
+  res.writeHead(200, { 'Content-Type': /^\uFEFF?WEBVTT/.test(text) ? 'text/vtt; charset=utf-8' : 'text/srt; charset=utf-8' });
   res.end(output);
 }
 
@@ -382,35 +378,6 @@ const server = http.createServer((req, res) => {
       if (!res.headersSent) res.writeHead(502);
       res.end('Download failed');
     });
-    return;
-  }
-
-  // Ktuvit subtitle download proxy
-  if (url.startsWith('/proxy/ktuvit/')) {
-    const token = url.slice('/proxy/ktuvit/'.length).split('?')[0];
-    const download = getDownload(token);
-    const subId = download && download.subId;
-    if (!subId) {
-      res.writeHead(400);
-      res.end('Missing subtitle ID');
-      return;
-    }
-
-    downloadKtuvit(subId, download.config.ktuvitEmail, download.config.ktuvitPassword)
-      .then(result => {
-        if (!result) {
-          res.writeHead(404);
-          res.end('Subtitle not found or Ktuvit auth failed');
-          return;
-        }
-        const rtl = new URL(req.url, 'http://localhost').searchParams.get('rtl') === '1';
-        sendSubtitle(res, result.buffer, rtl);
-      })
-      .catch(err => {
-        console.error('Ktuvit proxy error:', err.message);
-        if (!res.headersSent) res.writeHead(502);
-        res.end('Download failed');
-      });
     return;
   }
 
