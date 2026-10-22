@@ -384,6 +384,13 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Public, non-sensitive diagnostics: expose active renderer mode to installer.
+  if (url === '/status') {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ version: '2.0.3', rtlMode: (process.env.RTL_MODE || 'off').toLowerCase() }));
+    return;
+  }
+
   // Debug endpoint — check indexer accessibility from server
   if (url === '/debug/indexers') {
     const { searchYTS, searchEZTV, searchIndexers } = require('./lib/indexers');
