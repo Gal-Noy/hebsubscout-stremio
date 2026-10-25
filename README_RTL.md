@@ -28,6 +28,7 @@ An opt-in compatibility **experiment**, not an automatic, universal fix:
 | `on` | One RTL-test track per provider result | Legacy RLE/PDF experiment (often worsens desktop punctuation) |
 | `apple` | One Apple TV experimental track per provider result | Convert logical final punctuation to legacy leading punctuation, unwrapping RLE/PDF |
 | `compare-apple` | Original and Apple TV versions | Side-by-side device testing |
+| `probe` | Four versions of one release per provider, visibly prefixed `PROBE-RAW`, `PROBE-RLM`, `PROBE-RLI`, `PROBE-VTT` | Temporary tvOS rendering diagnosis; do not leave enabled |
 
 The function is **idempotent**: running twice has the same result as running once. It respects existing Unicode BiDi marks, text in other languages, subtitle timestamps and WebVTT. It does not attempt to guess where punctuation belongs in historically pre-reversed SRTs, and RTL may still look worse on some players.
 
@@ -41,7 +42,7 @@ npm start
 
 To diagnose a source's availability, inspect Render logs: each search logs the number of subtitles returned per provider.
 
-For **The Boys S02E04: Nothing Like It in the World** use series ID `tt1190634:2:4`. This task inspected the subtitle retrieval and renderer preprocessing code but could **not** fetch the exact Wizdom SRT file from the research environment; its visual punctuation order has not been verified. If you provide that SRT file, we can inspect the actual leading and trailing symbols and the exact Unicode controls without guessing.
+For **The Boys S02E04: Nothing Like It in the World** use series ID `tt1190634:2:4`. We downloaded actual Wizdom/Ktuvit/OpenSubtitles SRT files for this episode in the prior diagnostic workflow. Among 1,067 Hebrew lines, one Wizdom release had 933 leading punctuation lines and another had 933 trailing punctuation lines with RLE/PDF. Server-side normalization tests passed, but actual tvOS visual rendering remained incorrect. This is why the diagnostic probe exists.
 
 ## Implementation notes
 
@@ -50,3 +51,29 @@ No new runtime dependencies. The subtitle proxy uses 128-bit random short-lived 
 The three upstream subtitle services are outside this fork's control. If one fails, it may still show up independently in Stremio if you have its original addon installed; remove redundant addons only when you're satisfied with the aggregator.
 
 The installer shows the actual active mode from the public `/status` endpoint. `apple` is an **experimental tvOS-specific convention** and is not guaranteed to improve every player. It is likely to produce the wrong punctuation on desktops that expect logical RTL punctuation.
+
+## tvOS rendering probe (diagnostic, no confirmed fix yet)
+
+If `off`, `on` and `apple` still leave punctuation reversed on tvOS,
+temporarily set `RTL_MODE=probe` in Render and deploy. The addon returns
+exactly four variants **from the same subtitle file for each source**:
+
+- `[PROBE-RAW]`: Unmodified source.
+- `[PROBE-RLM]`: Normalize legacy leading punctuation back to logical order, then prepend U+200F RIGHT-TO-LEFT MARK to Hebrew lines.
+- `[PROBE-RLI]`: Same logical normalization, wrap each Hebrew line in U+2067 RIGHT-TO-LEFT ISOLATE and U+2069 POP DIRECTIONAL ISOLATE.
+- `[PROBE-VTT]`: Convert to WebVTT with `align:start` and U+200F. The `.vtt` URL extension and MIME are set explicitly.
+
+Select variants from **the same source** at the same timestamp, ideally The Boys S02E04.
+Do not compare arbitrary different release files: the originals use different
+punctuation conventions. The node server logs only the probe format and byte
+size when selected, never the subtitle dialogue or credential data.
+
+This is an **instrumented experiment**, NOT a resolved RTL fix. If none of the
+variants works in KSPlayer or libVLC, the native subtitle renderer likely needs
+a bidi/base-paragraph-direction fix. Restore `RTL_MODE=off` after testing,
+especially for desktop, where RTL processing can be counterproductive.
+
+To verify that the flag is active, open `/status` and check
+`"rtlMode":"probe"`. If all four choices display the same output, inspect
+Render logs for `[HebSubScout] served probe-...` to determine whether the
+tvOS player requested the differing subtitle files.
