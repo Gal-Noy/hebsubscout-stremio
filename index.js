@@ -45,7 +45,7 @@ function getDownload(token) {
 
 const manifest = {
   id: 'com.hebsubscout.rtl',
-  version: '2.0.4',
+  version: '2.0.5',
   name: 'HebSubScout RTL',
   description: 'Hebrew subtitle intelligence — match % on every source, auto-selects best subtitle. Built-in Real-Debrid. Free & open source.',
   logo: 'https://shahar015.github.io/hebsubscout/repo/plugin.video.hebscout/icon.png',
@@ -274,8 +274,8 @@ builder.defineSubtitlesHandler(async ({ type, id, extra }) => {
   // Build the base URL for proxied downloads
   const baseUrl = process.env.RENDER_EXTERNAL_URL || process.env.BASE_URL || `http://localhost:${port}`;
 
-  // One subtitle track by default; an RTL A/B test is opt-in.
-  const rtlMode = (process.env.RTL_MODE || 'off').toLowerCase();
+  // Use the RLI/PDI format verified on desktop and Apple TV; retain diagnostic modes.
+  const rtlMode = (process.env.RTL_MODE || 'rli').toLowerCase();
   // Diagnostic mode: one release per provider, four *clearly named* variants.
   // Keeps routine Stremio subtitle lists free from duplicates in other modes.
   const selected = rtlMode === 'probe' ? sorted.filter((sub, i, all) =>
@@ -299,13 +299,13 @@ builder.defineSubtitlesHandler(async ({ type, id, extra }) => {
 
     const entry = mode => ({
       id: `${mode}-${id}`,
-      url: mode === 'apple' ? `${url}?apple=1` : mode === 'on' ? `${url}?rtl=1` : url,
+      url: mode === 'rli' ? `${url}?rtl=rli` : mode === 'apple' ? `${url}?apple=1` : mode === 'on' ? `${url}?rtl=1` : url,
       lang: 'heb',
       label: `[${sub.provider}] ${sub.name}${mode === 'apple' ? ' (Apple TV test)' : mode === 'on' ? ' (RTL test)' : ''}`,
     });
     return rtlMode === 'compare' ? [entry('off'), entry('on')]
       : rtlMode === 'compare-apple' ? [entry('off'), entry('apple')]
-      : [entry(rtlMode === 'apple' || rtlMode === 'on' ? rtlMode : 'off')];
+      : [entry(['off', 'on', 'apple'].includes(rtlMode) ? rtlMode : 'rli')];
   });
 
   console.log(`[HebSubScout] Returning ${result.length} Hebrew subtitles for ${imdbId}`);
@@ -339,7 +339,8 @@ function sendSubtitle(res, sourceBuffer, mode) {
     try { text = new TextDecoder('utf-8', { fatal: true }).decode(buf); }
     catch { text = new TextDecoder('windows-1255').decode(buf); }
   }
-  const processed = mode === 'apple' ? normalizeForAppleTv(text)
+  const processed = mode === 'rli' ? makeRliSrt(text)
+    : mode === 'apple' ? normalizeForAppleTv(text)
     : mode === 'on' ? fixSubtitleRtl(text)
     : mode === 'probe-rlm' ? makeRlmSrt(text)
     : mode === 'probe-rli' ? makeRliSrt(text)
@@ -402,6 +403,7 @@ const server = http.createServer((req, res) => {
       const params = new URL(req.url, 'http://localhost').searchParams;
       const probe = params.get('probe');
       const mode = ['raw', 'rlm', 'rli', 'vtt'].includes(probe) ? `probe-${probe}`
+        : params.get('rtl') === 'rli' ? 'rli'
         : params.get('apple') === '1' ? 'apple'
         : params.get('rtl') === '1' ? 'on' : 'off';
       sendSubtitle(res, await response.buffer(), mode);
@@ -416,7 +418,7 @@ const server = http.createServer((req, res) => {
   // Public, non-sensitive diagnostics: expose active renderer mode to installer.
   if (url === '/status') {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-    res.end(JSON.stringify({ version: '2.0.4', rtlMode: (process.env.RTL_MODE || 'off').toLowerCase() }));
+    res.end(JSON.stringify({ version: '2.0.5', rtlMode: (process.env.RTL_MODE || 'rli').toLowerCase() }));
     return;
   }
 
