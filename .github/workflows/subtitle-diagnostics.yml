@@ -12,5 +12,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Unicode and Apple TV normalization unit tests
         run: node tests/rtl.test.js
+      - name: RTL diagnostic probe unit tests
+        run: node tests/probe.test.js
       - name: Public subtitle source metadata (no dialogue logged)
         run: python3 scripts/diagnose_subs.py
