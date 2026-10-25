@@ -144,9 +144,9 @@ const rli=makeRliSrt(input);
 const vtt=makeRlmWebVtt(input);
 for(const [fn,value] of [[toLogicalSrt,canonical],[makeRlmSrt,rlm],[makeRliSrt,rli],[makeRlmWebVtt,vtt]])
   if(fn(value)!==value)throw new Error('Probe mode not idempotent');
-if(!vtt.startsWith('WEBVTT\\n\\n') && !vtt.startsWith('WEBVTT\\n'))throw new Error('Missing WebVTT header');
+if(!vtt.startsWith('WEBVTT\n\n') && !vtt.startsWith('WEBVTT\n'))throw new Error('Missing WebVTT header');
 if(!vtt.includes('align:start'))throw new Error('Missing WebVTT cue alignment');
-const count=text=>({rlm:(text.match(/\\u200f/g)||[]).length,rli:(text.match(/\\u2067/g)||[]).length,timestamps:(text.match(/-->/g)||[]).length});
+const count=text=>({rlm:(text.match(/\u200f/g)||[]).length,rli:(text.match(/\u2067/g)||[]).length,timestamps:(text.match(/-->/g)||[]).length});
 if(count(canonical).timestamps!==count(rlm).timestamps||count(rlm).timestamps!==count(vtt).timestamps)
   throw new Error('Cue count changed');
 process.stdout.write(JSON.stringify({canonical:count(canonical),rlm:count(rlm),rli:count(rli),vtt:count(vtt)}));
