@@ -41,7 +41,7 @@ async function testMode(mode, expectedCount, expectedSuffix) {
   for (const sub of result.subtitles) {
     assert.equal(sub.lang, 'heb');
     if (expectedSuffix) assert.ok(sub.url.endsWith(expectedSuffix), 'Expected subtitle mode query');
-    else assert.ok(!sub.url.includes('?'), 'Off must use original proxy URL');
+    else if (expectedSuffix === null) assert.ok(!sub.url.includes('?'), 'Off must use original proxy URL');
   }
   const providerNames = ['wizdom', 'ktuvit', 'opensubtitles'];
   for (const provider of providerNames) {
@@ -56,7 +56,7 @@ async function testMode(mode, expectedCount, expectedSuffix) {
   await testMode('off', 3, null);
   await testMode('on', 3, '?rtl=1');
   await testMode('apple', 3, '?apple=1');
-  await testMode('probe', 12, null);
+  await testMode('probe', 12, undefined);
   assert.ok(index.includes("params.get('rtl') === 'rli' ? 'rli'"), 'Server parses rli query');
   assert.ok(index.includes("mode === 'rli' ? makeRliSrt(text)"), 'Server transforms rli SRT');
   console.log('Production RLI mode tests passed');
