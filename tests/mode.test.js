@@ -43,7 +43,11 @@ async function testMode(mode, expectedCount, expectedSuffix) {
     if (expectedSuffix) assert.ok(sub.url.endsWith(expectedSuffix), 'Expected subtitle mode query');
     else assert.ok(!sub.url.includes('?'), 'Off must use original proxy URL');
   }
-  assert.deepEqual([...new Set(result.subtitles.map(s => s.url.split('/')[5]))].length, expectedCount === 12 ? 4 : 1);
+  const providerNames = ['wizdom', 'ktuvit', 'opensubtitles'];
+  for (const provider of providerNames) {
+    const matches = result.subtitles.filter(s => s.id.includes(provider));
+    assert.equal(matches.length, expectedCount === 12 ? 4 : 1, 'One track per provider or four in probe');
+  }
 }
 
 (async () => {
