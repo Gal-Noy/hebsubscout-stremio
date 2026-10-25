@@ -19,24 +19,27 @@ Deploy this fork's `main` on Render using the **unchanged** `render.yaml`. Open 
 
 ## RTL modes
 
-An opt-in compatibility **experiment**, not an automatic, universal fix:
+**RLI/PDI is now the default** based on user-confirmed results in both Stremio desktop and Stremio tvOS (The Boys S02E04). It is not guaranteed to fix every subtitle release:
 
 | `RTL_MODE` env | Subtitle picker | Processing |
 | --- | --- | --- |
-| `off` (default) | One track from each provider | No directional edits |
+| `rli` (default) | One track per result | Normalize legacy leading punctuation to logical order, then wrap Hebrew SRT lines in U+2067 RLI / U+2069 PDI |
+| `off` | One unchanged track per result | Disable all directional edits if a particular file is worse |
 | `compare` | Original and RTL-test versions | Compare on the same Apple TV player |
 | `on` | One RTL-test track per provider result | Legacy RLE/PDF experiment (often worsens desktop punctuation) |
 | `apple` | One Apple TV experimental track per provider result | Convert logical final punctuation to legacy leading punctuation, unwrapping RLE/PDF |
 | `compare-apple` | Original and Apple TV versions | Side-by-side device testing |
 | `probe` | Four versions of one release per provider, visibly prefixed `PROBE-RAW`, `PROBE-RLM`, `PROBE-RLI`, `PROBE-VTT` | Temporary tvOS rendering diagnosis; do not leave enabled |
 
-The function is **idempotent**: running twice has the same result as running once. It respects existing Unicode BiDi marks, text in other languages, subtitle timestamps and WebVTT. It does not attempt to guess where punctuation belongs in historically pre-reversed SRTs, and RTL may still look worse on some players.
+RLI normalization is **idempotent**: a second pass does not add more isolate markers. It normalizes the two common real-world Hebrew SRT punctuation conventions before isolating cue lines and preserves timestamps, line endings and English-only lines. Ambiguous punctuation remains unchanged. WebVTT is passed through unchanged. The result was verified visually for one episode on desktop and Apple TV, not universally.
 
 ## Test
 
 ```sh
 npm ci
 node tests/rtl.test.js
+node tests/probe.test.js
+node tests/mode.test.js
 npm start
 ```
 
@@ -77,3 +80,11 @@ To verify that the flag is active, open `/status` and check
 `"rtlMode":"probe"`. If all four choices display the same output, inspect
 Render logs for `[HebSubScout] served probe-...` to determine whether the
 tvOS player requested the differing subtitle files.
+
+## Production settings after Apple TV + desktop validation
+
+Stremio on Apple TV: PROBE-RLI worked; RAW did not. On desktop, PROBE-RLI and RAW worked, but RLM/VTT did not. The server therefore now defaults to RLI for both players. Do **not** leave `RTL_MODE=probe` in Render after upgrading: that env var overrides the default. Set `RTL_MODE=rli` or remove the variable from Render entirely, then redeploy.
+
+To check: open `/status` and confirm `"version":"2.0.5"` and `"rtlMode":"rli"`. Normal subtitle lists contain a single RLI-processed track per result; no PROBE variants.
+
+If a particular release is still incorrect, test that specific file with `RTL_MODE=probe` temporarily and then report its provider/release label. Do not assume the RLI success on The Boys guarantees success on every subtitle or media player.

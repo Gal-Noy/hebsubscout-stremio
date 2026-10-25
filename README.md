@@ -4,7 +4,7 @@
 
 Free & open source alternative to "Heb Subs Premium".
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Version](https://img.shields.io/badge/version-2.0.5-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## What Makes This Different
@@ -22,7 +22,7 @@ Other Hebrew subtitle addons (ktuvit-stremio, wizdom-stremio) only provide subti
 - `[עב 92%]` = Hebrew subtitle matches this source 92%
 - `[עב ✗]` = No matching Hebrew subtitle found
 
-> **RTL fork (v2.0.4):** subtitle search now aggregates the official Stremio OpenSubtitles v3, Ktuvit and Wizdom addons. No personal OpenSubtitles API key or Ktuvit credentials are needed. The RTL experiment is opt-in with `RTL_MODE`; default is one unchanged subtitle per result. `RTL_MODE=apple` enables experimental punctuation normalization for Stremio tvOS. If punctuation remains reversed, `RTL_MODE=probe` exposes RAW/RLM/RLI/VTT versions of the same subtitle to identify whether the tvOS player honors direction marks; this is not a proven fix. The installer shows the active server mode. See [README_RTL.md](README_RTL.md).
+> **RTL fork (v2.0.4):** subtitle search now aggregates the official Stremio OpenSubtitles v3, Ktuvit and Wizdom addons. No personal OpenSubtitles API key or Ktuvit credentials are needed. The RTL experiment is opt-in with `RTL_MODE`; default is one unchanged subtitle per result. `RTL_MODE=apple` enables experimental punctuation normalization for Stremio tvOS. If punctuation remains reversed, `RTL_MODE=rli` (now the default) wraps normalized Hebrew SRT cue lines in Unicode RLI/PDI, which worked in user testing on both Apple TV and desktop. `RTL_MODE=probe` remains available for testing an exceptional subtitle source. The installer shows the active server mode. See [README_RTL.md](README_RTL.md).
 
 ## Quick Install
 
