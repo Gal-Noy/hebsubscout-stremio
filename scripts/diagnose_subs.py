@@ -132,3 +132,39 @@ try:
 except Exception as e:
  print("APPLE_NORMALIZE_ERROR",str(e)[:240],flush=True)
  raise
+
+# Verify candidate RTL probe formats against real source SRTs without printing dialogue.
+NODE_PROBE=r"""
+const fs=require('fs');
+const {toLogicalSrt,makeRlmSrt,makeRliSrt,makeRlmWebVtt}=require('./lib/probe');
+const input=fs.readFileSync(0,'utf8');
+const canonical=toLogicalSrt(input);
+const rlm=makeRlmSrt(input);
+const rli=makeRliSrt(input);
+const vtt=makeRlmWebVtt(input);
+for(const [fn,value] of [[toLogicalSrt,canonical],[makeRlmSrt,rlm],[makeRliSrt,rli],[makeRlmWebVtt,vtt]])
+  if(fn(value)!==value)throw new Error('Probe mode not idempotent');
+if(!vtt.startsWith('WEBVTT\\n\\n') && !vtt.startsWith('WEBVTT\\n'))throw new Error('Missing WebVTT header');
+if(!vtt.includes('align:start'))throw new Error('Missing WebVTT cue alignment');
+const count=text=>({rlm:(text.match(/\\u200f/g)||[]).length,rli:(text.match(/\\u2067/g)||[]).length,timestamps:(text.match(/-->/g)||[]).length});
+if(count(canonical).timestamps!==count(rlm).timestamps||count(rlm).timestamps!==count(vtt).timestamps)
+  throw new Error('Cue count changed');
+process.stdout.write(JSON.stringify({canonical:count(canonical),rlm:count(rlm),rli:count(rli),vtt:count(vtt)}));
+"""
+try:
+ source_urls=[]
+ for name,base,indices in [("Wizdom",SOURCES["Wizdom"],[0,2]),
+                           ("Ktuvit",SOURCES["Ktuvit"],[1]),
+                           ("OpenSubtitles",SOURCES["OpenSubtitles"],[0])]:
+  response,_,_,_=get(base+PATH,1000000)
+  items=[s for s in json.loads(response)["subtitles"] if str(s.get("lang","")).lower() in ("he","heb","iw")]
+  for idx in indices:
+   if len(items)>idx:source_urls.append((name+"_"+str(idx),items[idx]["url"]))
+ for name,url in source_urls:
+  raw,_,_,_=get(url)
+  p=subprocess.run(['node','-e',NODE_PROBE],input=decoded(raw),text=True,capture_output=True,timeout=10)
+  if p.returncode:raise RuntimeError(name+": "+p.stderr[:200])
+  print("PROBE_LIVE",name,p.stdout,flush=True)
+except Exception as e:
+ print("PROBE_LIVE_ERROR",str(e)[:250],flush=True)
+ raise
