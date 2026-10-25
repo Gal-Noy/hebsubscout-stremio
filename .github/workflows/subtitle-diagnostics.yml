@@ -14,5 +14,7 @@ jobs:
         run: node tests/rtl.test.js
       - name: RTL diagnostic probe unit tests
         run: node tests/probe.test.js
+      - name: Production subtitle-mode tests
+        run: node tests/mode.test.js
       - name: Public subtitle source metadata (no dialogue logged)
         run: python3 scripts/diagnose_subs.py
