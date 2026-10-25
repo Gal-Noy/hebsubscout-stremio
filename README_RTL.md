@@ -39,6 +39,7 @@ RLI normalization is **idempotent**: a second pass does not add more isolate mar
 npm ci
 node tests/rtl.test.js
 node tests/probe.test.js
+node tests/mode.test.js
 npm start
 ```
 
